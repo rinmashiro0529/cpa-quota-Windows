@@ -40,9 +40,9 @@
 | 共同输入与预期 | [ContractFixtures](https://github.com/rinmashiro0529/cpa-quota-ios/tree/80beea9ed251a628307825cba99290b5f246575b/Tests/ContractFixtures) | 可提取原始 fixture；已有数量不证明全部业务覆盖 |
 | 证据和许可 | [RELEASE_GATES.md](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/docs/RELEASE_GATES.md)、[历史复审](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/docs/READINESS_REAUDIT_20261108.md)、[LICENSE](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/LICENSE)、[THIRD_PARTY_NOTICES.md](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/THIRD_PARTY_NOTICES.md) | 历史报告限定当时版本/环境；源许可不自动覆盖新增 Windows 依赖 |
 
-### 2.2 尚未合并的 PR：独立候选，不并入基线
+### 2.2 初版冻结时的 PR 快照（历史记录）
 
-以下状态来自本轮 GitHub 核验快照，详细记录见 [SOURCE_BASELINE](SOURCE_BASELINE.md)。PR 状态、分支和 head 会变化；开始实现时重新核对，但只有正式更新 source lock 后才变更冻结范围。
+下表保留初版观察，不代表对照提交的 PR 状态；#33 后来已合并，#34 已更换 base/head。更新后的事实及决定见 [来源基线](SOURCE_BASELINE.md)。以下状态来自初版 GitHub 核验快照，详细记录见 [SOURCE_BASELINE](SOURCE_BASELINE.md)。PR 状态、分支和 head 会变化；开始实现时重新核对，但只有正式更新 source lock 后才变更冻结范围。
 
 | PR | 核查时状态与准确 head | 允许的用法 |
 | --- | --- | --- |

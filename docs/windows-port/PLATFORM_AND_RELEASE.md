@@ -49,6 +49,21 @@ WinUI 的框架兼容下限覆盖 Windows 10 1809，但这不等于本产品承�
 
 平台等价的证据必须包含用户能做什么、何时能做、数据来自哪里、进程退出后发生什么以及与 iOS 的实际差异。仅写“用 Toast 替换 Live Activity”不构成完整定义。
 
+### 2.1 Apple 展示投影到 Windows 的对应关系
+
+下表落实 `F-MON-004/005/007/009/010/011/012` 与 `F-PLAT-003/004/005/006`，不把平台名称替换当作等价证明。额度偏好（`F-QTA-011`）不得开启 `F-PLAT-005` 的 Widget 共享；独立许可继续由第 6 节约束。
+
+| 固定源行为 | Windows 等价与不承诺项 | 可观测验收与 WP |
+| --- | --- | --- |
+| 启动监控时先验证授权，再创建本机 Activity、等待 push token、持久 UUID 并注册。启动失败不发送假 token；请求未确认则以原 UUID 对账。[协调器](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaUI/MonitoringWorkspaceCoordinator.swift#L826-L969) | App 内流程与系统 binding 建立、通道获取、服务注册分别提交并可恢复。未取得合格 binding 不创建远端“Windows 会话”，不以 session=active 证明通知已可展示。 | AT-MON-004：每个持久边界暂停/强杀/丢响应，恢复原 operation/ID，无重复服务意图或假通道；WP-002/019/021/022。 |
+| Activity `content-state` 就是监控 v1 的安全快照，额外静态属性仅安全 source alias；系统活动选取账号是本机选择，不进入 wire。[状态](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaActivity/CPAQuotaActivityState.swift#L7-L77) | 细长托盘、紧凑窗口、Widget、Toast 各保留适用读数、状态、观察时间和陈旧终态，可能展示不同数量的数据；不声称 Windows 有相同锁屏/灵动岛表面，不把布局裁切内容返回服务端。 | AT-MON-007/011、AT-UI-009：相同快照多表面解析；窄窗、缩放、读屏、数据过期/终止与账号选择；WP-021/022/023/024/026。 |
+| 锁屏/灵动岛使用安全别名、窗口、数值和状态，`.privacySensitive()` 保护敏感呈现；minimal 形态有意只显示状态符号而非数值。[Widget](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaActivity/CPAQuotaLiveActivityWidget.swift#L56-L143) [`L181-215`](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaActivity/CPAQuotaLiveActivityWidget.swift#L181-L215) | 锁屏和通知默认通用状态，不放读数、完整账号、地址或聊天；在应用内清晰且获许可的界面才显示许可范围摘要。系统遮挡不能成为应用主动发送秘密的理由。 | AT-PLAT-004/005、AT-UI-009：通知允许/禁用/免打扰/锁屏、截图、通知历史与默认共享关闭检查；WP-022/023/026。 |
+| 系统内容回调只更新本机 Activity 投影，不修改 HTTP Store 的 revision 或取消回执；只停止本机显示会明确保留远端租约。[协调器](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaUI/MonitoringWorkspaceCoordinator.swift#L400-L415) [`L478-535`](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaUI/MonitoringWorkspaceCoordinator.swift#L478-L535) | 推送后台回调不拥有订阅状态；关闭 Toast/Widget/紧凑窗、退出 UI 与 DELETE/POST cancel 分开；外部激活只导航，不自动创建或停止付费/远端操作。 | AT-MON-009/011、AT-PLAT-003/006：三种操作组合、进程退出与冷/热激活；业务版本、展示 epoch 与清理分开；WP-021/022/023/024。 |
+| 旧 bridge/token 的恢复记录与 detached client 保留，只有明确、匹配的上下文才查询/停止；404 不证明远端已停。[协调器](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaUI/MonitoringWorkspaceCoordinator.swift#L972-L1020) | 非敏感恢复索引记录原地址、credential binding revision、subscription ID、操作阶段和终态；token/channel 本身不放普通数据库或诊断。 | AT-MON-010：换端点/凭据后旧订阅仍能定向对账；误匹配、离线、凭据不可用无跨域写入；WP-006/021。 |
+| 真实 system driver 与 synthetic driver 分开；Swift 测试替身只验证状态机，不证明真实 APNs、锁屏或灵动岛。[System driver](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaUI/SystemLiveActivitySupport.swift#L272-L328) | Windows fake notification/WNS/Widget 同样不能替代最终 MSIX、系统宿主与真实链路。测试替身需标明身份，产品运行时不得把 fake 当降级后端。 | AT-PLAT-004/005/009：最终包中分别记录合成合同、系统实际显示及没法观察的 `unknown`；WP-027/031。 |
+
+Apple 源代码中的系统画面和测试替身均不能充当 Windows 截图或设备证据。每个 Windows 展示面另行记录 app/remote/binding 状态、可见信息范围、用户操作和 foreground/background/exit/offline 限制。
+
 ## 3. 平台适配边界
 
 业务层只依赖窄接口，不引用窗口句柄、COM 激活对象、Widgets 回调、托盘结构或包安装路径。下面名称是架构建议，可在实现 ADR 中调整，但职责不得合并成无边界的全局服务。
@@ -255,6 +270,23 @@ UI 自动化 job 在执行用例前记录并验证：Windows 版本/架构、登
 
 必须人工复核 Narrator、输入法组合、多屏、睡眠恢复和真实通知/Widgets 宿主；这些场景允许自动化辅助，但不能仅依据业务 mock 标记完成。
 
+### 9.3 WP-027 的机器门禁与负向自检
+
+WP-027 交付的 PowerShell `build / verify / package / collect-evidence` 是未来脚本名，当前没有 Windows 应用、工程或这些脚本。建立后用合成输入验证检查器本身，不能把一个存在但空跑的 suite 判为通过。
+
+1. **入口与退出码**：每个步骤记录工具版本、超时、退出码和日志汇总；任一步骤 failed/not_run/unknown 不得被后续成功步骤覆盖。`continue-on-error` 只能用于证据上传等已明确允许的辅助步骤，并保留聚合失败。
+2. **覆盖存在性**：预期测试项目、功能 fixture、package manifest、架构产物和结果文件缺失，或检测到 0 个适用用例，应 failed/not_run，不能靠测试框架“无测试即成功”放行。记录实际 discovered / executed / failed / skipped 与各自范围。
+3. **同源与独立性**：报告关联 Windows head SHA、source SHA、服务/exporter SHA、run/attempt、构建参数、依赖锁、输入/输出散列。签名后重新计算 MSIX/bundle 散列；不得沿用构建前或无符号包的结果。
+4. **桌面与秘密隔离**：UI job 先完成第 9.2 节预检；解锁/有桌面不代表 Widgets/WNS 可用。普通 PR 不持有发布签名、生产 WNS 秘密、真实 channel URI 或实际账号，证据上传默认脱敏且设置有界保留。
+5. **因果与回归**：WP-002 原型不能标记 WP-022 的真实远端链路完成，WP-020 的 Go race 或 fake adapter 不能覆盖 WP-022，控件截图不能覆盖数据/取消/请求计数。WP-027 为跨域测试准备正控制、请求/投递捕获器及证据索引，失败注入实际命中才算执行。
+6. **变更触发**：相关源码、测试、fixture、schema、包 manifest、签名/更新材料、系统适配或服务依赖变化时，按明确路径关联重跑受影响层次；发布候选全量。不能用绿的旧 SHA 省略新改动相关门禁。WP-028/031/032 均使用最终相同提交与明确产物链。
+
+#### 9.3.1 源 CI/发布脚本提供的格式与限制参考
+
+源仓库 Go job 把 `go test ./...`、`go test -race ./...`、vet 与 Linux/Windows build 分开，Windows 二进制产出仅证明构建链而不是服务交付；扩展 validator 查嵌入扩展、标识、架构、最低系统和框架链接，不能证明真机展示。[`backend-checks.yml:17-57`](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/.github/workflows/backend-checks.yml#L17-L57) [`validate_activity_extension.py:139-215`](https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/ci/validate_activity_extension.py#L139-L215) 这些事实对应 `F-PLAT-007/008/009`，可借鉴其证据分层，不能把 iOS 或 Go 结果移植成 Windows 通过。
+
+Windows 的 `F-PLAT-010`/WP-030/SBOM 与秘密扫描同理要针对实际发行内容和去敏诊断实施；平台 package/CI 是补充，不改变主 `ACCEPTANCE.md` 的完整门禁。
+
 ## 10. 可执行工作包与发布门禁
 
 下面是平台工作包，任务 ID 在主 [BACKLOG](BACKLOG.md) 与 `planning/tasks.json` 中统一映射；本表不创建另一套可以绕过全局门禁的完成规则。
@@ -288,6 +320,20 @@ M0 失败意味着调整实施方案、工具或安排，不意味着自动删�
 最终候选 SHA 的原生工作区、业务合同、安装升级和数据恢复通过；受支持 Windows 11 的 x64/ARM64 均有证据；具备宿主的 Widgets 与无宿主替代分别通过；真实远端监控/推送链路验证；隐私撤销没有已知重显漏洞；键盘/IME/Narrator 没有阻塞性缺陷；签名、更新与诊断材料可复现。
 
 若外部服务、宿主策略或用户通知设置限制交付，应精确说明可用边界。用户自行关闭某能力不等于产品实现不完整；开发尚未实现或无法验证某能力，则不得宣称该能力已完成。
+
+### 10.3 候选、签名与放行的责任分界
+
+| 关卡 | 输入与可拒绝结果 | 允许推进的结论 | 主 WP / F |
+| --- | --- | --- | --- |
+| 平台与技术出口 | M0 的实际包、版本锁定和宿主/通知/推送依赖；缺 ARM64、真实宿主、WNS 资格或存在阻塞性交互缺陷时不得进入完成声明 | 可继续实现/联调；不声称功能齐全或可发布 | WP-000/001/002/003/019/027；F-PLAT-007/009 |
+| 功能集成 | 所有相关 F/AT 与不变量、v1/v2 兼容、失败取消、数据恢复和平台替代分支；来源服务 SHA 已部署且与 fixture/客户端一致 | feature_complete 候选；非完整发布 | WP-020–026；F-MON-*、F-PLAT-002–006 |
+| 可重复候选构建 | WP-027 的机器汇总、WP-028 双架构正式包、WP-029 固定环境与性能数据、WP-030 安全/许可审查 | 有明确 SHA 的 RC 输入；任何 failed/not_run/unknown/blocked 留下阻断 | WP-027/028/029/030；F-PLAT-007/008/009/010 |
+| 实际安装与系统链路 | **签名后精确的 MSIX/bundle 散列**在干净最低/当前 Windows、x64/真实 ARM64 上安装；实际 Widgets/通知/WNS/PFN 链路；升级迁移 | WP-031 可判 RC 的集成验收已完成；不能用开发包或 fake 代替 | WP-028/022/023/031；F-MON-005/011、F-PLAT-004/005/007/008 |
+| 发布审核与外部动作 | WP-031 的 97 项+6 CROSS 当前证据，全部 required WP done，许可/发布说明/已知限制，候选与服务/exporter 版本对齐 | WP-032 才可判定 release-full；正式上传、外部申请、生产部署等按届时独立授权，不由本计划自动执行 | WP-032；所有必需 F |
+
+每次修改都可能只使受影响检查失效，但任何形成新候选 SHA 的代码、依赖、manifest、schema、签名或更新配置都须重新关联证据；最终发布不得用未签名的 CI 包签名后跳过全部安装/升级和真实系统路径。独立签名者/审阅者与具体执行者分开记录，结果包索引同时附构建输入散列、实际输出散列、签名证书/时间戳（不含秘密）和验证命令。
+
+可使用“已完成源码实现”或“开发预览”描述局部结果；只能在表内条件齐全且主 `ACCEPTANCE.md` 不冲突时称完整移植。计划的 WP 编号是追踪锚点，不是实施完成的替代证据。
 
 ## 11. 官方来源
 

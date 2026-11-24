@@ -18,7 +18,7 @@
 6. [执行协议](docs/windows-port/EXECUTION_GUIDE.md)
 7. [验收门禁](docs/windows-port/ACCEPTANCE.md)
 
-聊天任务加读 [CHAT_AND_DATA.md](docs/windows-port/CHAT_AND_DATA.md)；系统集成、打包任务加读 [PLATFORM_AND_RELEASE.md](docs/windows-port/PLATFORM_AND_RELEASE.md)；监控任务加读 [MONITORING_PROTOCOL.md](docs/windows-port/MONITORING_PROTOCOL.md)。
+连接、额度、CAP 任务加读 [QUOTA_CAP_CONNECTION.md](docs/windows-port/QUOTA_CAP_CONNECTION.md)；聊天任务加读 [CHAT_AND_DATA.md](docs/windows-port/CHAT_AND_DATA.md)；系统集成、打包任务加读 [PLATFORM_AND_RELEASE.md](docs/windows-port/PLATFORM_AND_RELEASE.md)；监控任务加读 [MONITORING_PROTOCOL.md](docs/windows-port/MONITORING_PROTOCOL.md)。
 
 ## 技术与所有权
 

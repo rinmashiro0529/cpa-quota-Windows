@@ -51,6 +51,16 @@
       "url": "https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Tests/ContractFixtures/quota-parity-v1.json"
     }
   ],
+  "follow_up": {
+    "compared_main_sha": "179162a85bd8239a82edc7a28c490e5419d87309",
+    "observed_on": "2026-11-25",
+    "product_baseline_changed": false,
+    "changed_paths": ["Apple/CPAQuotaAppUITests/CPAQuotaAppUITests.swift"],
+    "pr_33": "merged in compared_main_sha; UI test synchronization only",
+    "pr_34": {"state": "open", "base": "main", "head_sha": "b6186b74427fc038c91b91b82ade6407b8f40658"},
+    "backend_ci": {"run_id": 45444132602, "attempt": 1, "conclusion": "failure", "failed_jobs": [138628972763, 138648085314]},
+    "historical_fields": "pending_pull_requests and upstream_ci below describe the original functional-baseline review, not live status"
+  },
   "pending_pull_requests": [
     {
       "number": 33,

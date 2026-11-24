@@ -22,9 +22,15 @@
 | 基线提交 | [`80beea9ed251a628307825cba99290b5f246575b`](https://github.com/rinmashiro0529/cpa-quota-ios/commit/80beea9ed251a628307825cba99290b5f246575b) | 本目录全部源码链接固定到此提交 |
 | 基线提交时间 | 2026-11-24 21:10:32 北京时间 | 对应 UTC `2026-11-24T13:10:32Z` |
 | 最近已合入内容 | [PR #31](https://github.com/rinmashiro0529/cpa-quota-ios/pull/31)：聊天流式性能、对比度、布局与交互改进；其基线已包含 [PR #32](https://github.com/rinmashiro0529/cpa-quota-ios/pull/32) 的 iOS CI 去重、缓存与 UI 测试分片 | 属于当前功能基线，不能用 11 月初审计结论代替新功能分析 |
-| 目标仓库 | [`rinmashiro0529/cpa-quota-Windows`](https://github.com/rinmashiro0529/cpa-quota-Windows) | 本轮核验为空仓库；目录 `docs/windows-port/` 明确平台含义 |
+| 目标仓库 | [`rinmashiro0529/cpa-quota-Windows`](https://github.com/rinmashiro0529/cpa-quota-Windows) | 规划初始化前为空；本次审计起点 `1b3de045695b886129d588cb21e5cea725fbef82` 已含规划与校验工具；目录 `docs/windows-port/` 明确平台含义 |
 
-### 2.1 尚未合并的源 PR
+### 2.1 后续对照与锁定决定
+
+2026-11-25 将功能 SHA 与 [`179162a8`](https://github.com/rinmashiro0529/cpa-quota-ios/commit/179162a85bd8239a82edc7a28c490e5419d87309) 作两点树比较：领先 5 个提交、仅 `Apple/CPAQuotaAppUITests/CPAQuotaAppUITests.swift` 有净变化（+91/−36），没有应用、Go 服务或 fixture 变化。**保留功能 SHA；吸收测试设计，不新增功能或导入未合并格式。** #33 已合并；#34 本次观察为 open、base `main`、head `b6186b74427fc038c91b91b82ade6407b8f40658`。这与初版快照并不矛盾。机器记录见 [source-lock.json](../../planning/source-lock.json)。
+
+对 WP-026/027/031：UIA 在详情、CAP 选择器、预览关闭后等待可观察的消失及目标焦点；可滚动流式列表先证明元素存在，再在有界截止前检查最终可见位置。过渡节点消失时重新获取快照；超时报失败并留 UI 树和时间线，不增大产品延迟、不用固定 sleep 掩盖缺陷。该 SHA 的 [Backend and contract checks，attempt 1](https://github.com/rinmashiro0529/cpa-quota-ios/actions/runs/45444132602) 仍为 failure（18 Pro shard 3/3、汇总失败）；另外两条 workflow 成功。这里只断言作业结论，不推断失败根因，也不覆盖旧 Duo 记录。
+
+### 2.2 初版冻结时尚未合并的源 PR（历史快照）
 
 以下是核验时的变化候选，**不计作 main 已具备的实现**：
 
@@ -104,6 +110,22 @@ CAP 数据由外部 `cap-token-usage-tracker` 插件提供，移动应用不采�
 | 第三方 Swift 依赖与 UI 资源 | 许可与行为参考 | 选择 Windows 实现并逐个核验许可；不能把 Swift 包当作 Windows 可直接依赖的库 |
 
 已有共享 fixture 为 `cpa-envelope-v1.json`、`quota-parity-v1.json`、`monitoring-v1-session.json`、`monitoring-capabilities-v1.json`、`monitoring-lifecycle-v1.json`。[S-FIXTURES] 源许可证为 [MIT][S-LICENSE]；源第三方声明见 [THIRD_PARTY_NOTICES.md][S-NOTICES]。迁移须保留必要声明，并单独确认图片、字体与新依赖权属。
+
+### 5.1 全树审计范围与复查方式
+
+输入是 Git tree，不是本机工作目录。Windows 起点 `1b3de045` 有 21 个跟踪文件：两个根入口、13 篇专题、3 个 JSON、2 个规划工具和 1 个 PR 模板。iOS 功能提交的 tree 为 `e0096b92e373bda4e5e96cab59aec80b804a3841`，下表各行互斥，共 287 个 blob。全树清点不是逐行正确性证明；来源、合同与运行证据分层使用。
+
+| iOS 输入 | 文件数 | 如何使用、哪些不直接移植 |
+|---|---:|---|
+| `Sources/` | 84 | 入口 App 1、Probe 1、Activity 5、Chat 10、Kit 31、UI 36。以产品入口、状态所有者及其调用链判定可达行为；诊断 probe 不是第六工作区。 |
+| `Services/` | 50 | Go 协议、采集、存储、投递、测试和部署样例；辨别在服务端而非桌面实现的责任，不执行部署。 |
+| `Tests/` | 59 | 54 个测试文件和 5 个共享夹具，用断言界定失败/未知/取消等边界。源端测试存在不等于 Windows 通过。 |
+| `Apple/` | 13 | 权限声明、工程/包锁定、扩展、原生 UI 测试及图标元数据；对照生命周期与用例，不照搬系统 API、签名或图像。 |
+| `.github/`、`ci/`、`tools/` | 36 | 分别 6、15、15；识别工作流、验证、构建和 live probe 的前提。CI 配置/旧证据不是本次实际运行。 |
+| `docs/`、`artifacts/` | 35 | 分别 29、6；合同与历史说明、旧截图、旧报告只在各自版本内有效。二进制图片仅按路径/身份盘点，不作为视觉审查或许可证明。 |
+| 根文件 | 10 | 包清单、构建配置、README、贡献/安全、许可、历史提示和忽略文件；旧提示不定义需求，许可不自动覆盖外部资产。 |
+
+复查：在 Windows 仓库运行 `python -I tools/planning/verify_source.py <本地iOS仓库路径>`。只用 Git 对象，检验固定 SHA 的 `blob`/`tree` 引用和完整夹具集合（路径、字节数、blob ID）。不要求检出该 SHA，不执行源仓库代码。新增路径应先归类：可达行为补功能/AT；纯平台实现补等价规则；历史产物注明证据边界。文件存在性不能证明文中语义，变更断言仍需审阅符号和测试。
 
 ## 6. 不可退化的业务与安全合同
 

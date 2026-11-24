@@ -47,7 +47,7 @@
         "重新读取源 main、#33/#34 与准确 SHA 的 CI；任何换基线均有差异审查，不能把未合并 PR 当作 main。",
         "确认源功能和五份合同完整；新增遗漏须扩矩阵，不以本计划遗漏删功能。",
         "明确签名/包身份、WNS/PFN、ARM64 环境、源 exporter 的负责人及解除条件；不把尚未授权的外部动作视为已执行。",
-        "运行计划校验器；记录基线复核日期和审阅者。本任务的完成只代表执行准备就绪。"
+        "运行 validate_plan.py、render_backlog.py --check、test_validate_plan.py；用 verify_source.py 对本地冻结 Git 对象复核路径和五份夹具。记录 Windows 基准 SHA、iOS 功能/对照 SHA、未决差异、复核日期和审阅者。本任务的完成只代表执行准备就绪。"
       ],
       "evidence_types": [
         "source_audit",

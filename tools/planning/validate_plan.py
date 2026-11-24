@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter, deque
 from datetime import date
+from functools import lru_cache
 import json
 from pathlib import Path
 import re
@@ -161,9 +162,24 @@ def link_destination(raw: str) -> str:
     return match.group(0) if match else ""
 
 
+@lru_cache(maxsize=128)
+def markdown_anchors(path: Path) -> set[str]:
+    """ATX headings and explicit anchors used in this planning corpus."""
+    body = strip_fences(path.read_text(encoding="utf-8-sig"))
+    result = set(re.findall(r'<a\s+(?:id|name)="([^"]+)"', body))
+    for heading in re.findall(r'^#{1,6}\s+(.+?)\s*$', body, re.M):
+        base = re.sub(r'[^\w\- ]', '', heading.lower()).replace(' ', '-')
+        slug, index = base, 0
+        while slug in result:
+            index += 1
+            slug = f'{base}-{index}'
+        result.add(slug)
+    return result
+
+
 def check_local_destination(raw: str, origin: Path, root: Path) -> str | None:
     destination = link_destination(raw)
-    if not destination or destination.startswith("#"):
+    if not destination:
         return None
     destination = re.sub(r"\\([()\\ ])", r"\1", destination)
     try:
@@ -173,13 +189,13 @@ def check_local_destination(raw: str, origin: Path, root: Path) -> str | None:
     if parsed.scheme or parsed.netloc:
         return None  # External URLs are not fetched; this gate makes no availability claim.
     path_text = unquote(parsed.path)
-    if not path_text:
-        return None
-    target = (root / path_text.lstrip("/")) if path_text.startswith("/") else (origin.parent / path_text)
+    target = origin if not path_text else ((root / path_text.lstrip("/")) if path_text.startswith("/") else (origin.parent / path_text))
     if not within(target, root):
         return f"relative link escapes repository: {destination}"
     if not target.exists():
         return f"missing Markdown link target: {destination}"
+    if parsed.fragment and target.suffix.lower() == '.md' and unquote(parsed.fragment) not in markdown_anchors(target.resolve()):
+        return f"missing Markdown anchor: {destination}"
     return None
 
 
@@ -244,6 +260,9 @@ def check_done_evidence(task: dict, root: Path, source_sha: str, known_features:
     if not isinstance(records, list) or not records:
         return [f"{task_id}: done requires nonempty passed evidence, not a completion assertion"]
     evidenced_features: set[str] = set()
+    evidenced_acceptances: set[str] = set()
+    assigned_acceptances = set(task['acceptance_ids']) if string_list(task.get('acceptance_ids')) else set()
+    candidate_shas: set[str] = set()
     for number, item in enumerate(records, 1):
         label = f"{task_id}.evidence[{number - 1}]"
         if isinstance(item, str):
@@ -272,7 +291,14 @@ def check_done_evidence(task: dict, root: Path, source_sha: str, known_features:
         target_sha = evidence.get("target_sha")
         if not isinstance(target_sha, str) or not SHA_RE.fullmatch(target_sha):
             errors.append(f"{label}: target_sha must identify the tested 40-hex commit")
-        if evidence.get("source_sha") is not None and evidence.get("source_sha") != source_sha:
+        else:
+            candidate_shas.add(target_sha)
+        at_ids = evidence.get('acceptance_ids')
+        if not string_list(at_ids) or set(at_ids) - assigned_acceptances:
+            errors.append(f'{label}: acceptance_ids must reference this task')
+        else:
+            evidenced_acceptances.update(at_ids)
+        if evidence.get("source_sha") != source_sha:
             errors.append(f"{label}: source_sha differs from the planning source lock")
         features = evidence.get("feature_ids")
         if not string_list(features):
@@ -313,6 +339,10 @@ def check_done_evidence(task: dict, root: Path, source_sha: str, known_features:
         elif not all(artifact_reference(artifact, root) for artifact in artifacts):
             errors.append(f"{label}: artifact references must be HTTP(S) URLs or existing repository files")
     assigned = set(task.get("feature_ids", [])) if string_list(task.get("feature_ids")) else set()
+    if len(candidate_shas) > 1:
+        errors.append(f'{task_id}: cannot combine different target_sha values to establish done')
+    if assigned_acceptances - evidenced_acceptances:
+        errors.append(f'{task_id}: missing task acceptance evidence: {sorted(assigned_acceptances - evidenced_acceptances)}')
     if assigned - evidenced_features:
         errors.append(f"{task_id}: done evidence does not cover assigned feature IDs: {', '.join(sorted(assigned - evidenced_features))}")
     return errors
@@ -331,6 +361,8 @@ def main() -> int:
         "template": "planning/evidence-template.json",
         "baseline": "docs/windows-port/SOURCE_BASELINE.md",
         "matrix": "docs/windows-port/FEATURE_PARITY.md",
+        "architecture": "docs/windows-port/ARCHITECTURE.md",
+        "acceptance": "docs/windows-port/ACCEPTANCE.md",
     }
     inputs = {key: root / value for key, value in relative_inputs.items()}
     missing = [f"missing input: {relative_inputs[key]}" for key, path in inputs.items() if not path.is_file()]
@@ -350,6 +382,8 @@ def main() -> int:
     try:
         baseline = inputs["baseline"].read_text(encoding="utf-8-sig")
         matrix = inputs["matrix"].read_text(encoding="utf-8-sig")
+        architecture = inputs['architecture'].read_text(encoding='utf-8-sig')
+        acceptance = inputs['acceptance'].read_text(encoding='utf-8-sig')
     except (OSError, UnicodeError) as error:
         report.check("read planning documents", [str(error)])
         return report.finish()
@@ -484,6 +518,39 @@ def main() -> int:
     if known_features - covered:
         errors.append("features without a task: " + ", ".join(sorted(known_features - covered)))
     report.check("complete feature-to-task coverage", errors)
+
+    errors = []
+    cross = {f'AT-CROSS-{i:03}' for i in range(1, 7)}
+    if Counter(re.findall(r'^\|\s*(AT-CROSS-\d+)\s*\|', acceptance, re.M)) != Counter(cross):
+        errors.append('ACCEPTANCE.md: missing or duplicate cross-domain scenario definition')
+    invariants = re.findall(r'^\|\s*(INV-\d+)\s*\|', architecture, re.M)
+    if len(invariants) != len(set(invariants)) or not invariants:
+        errors.append('ARCHITECTURE.md: missing or duplicate invariant definitions')
+    for tid, task in tasks_by_id.items():
+        fids = task.get('feature_ids')
+        required = {'AT-' + fid[2:] for fid in fids} if string_list(fids) else set()
+        if tid in {'WP-031', 'WP-032'}:
+            required |= cross
+        at = task.get('acceptance_ids')
+        if not string_list(at) or Counter(at) != Counter(required):
+            errors.append(f'{tid}: acceptance mapping must match assigned features and release scenarios')
+        inv = task.get('invariant_ids')
+        if not string_list(inv) or not inv or set(inv) - set(invariants) or len(inv) != len(set(inv)):
+            errors.append(f'{tid}: invalid invariant mapping')
+    report.check('task acceptance and invariant references', errors)
+
+    visited_ids: set[str] = set()
+    pending = ['WP-032']
+    while pending:
+        tid = pending.pop()
+        if tid in visited_ids or tid not in tasks_by_id:
+            continue
+        visited_ids.add(tid)
+        deps = tasks_by_id[tid].get('depends_on')
+        if string_list(deps):
+            pending.extend(deps)
+    missing_ids = set(tasks_by_id) - visited_ids
+    report.check('release dependency closure', [f'WP-032 does not require: {sorted(missing_ids)}'] if missing_ids else [])
 
     errors = []
     for task_id, task in tasks_by_id.items():

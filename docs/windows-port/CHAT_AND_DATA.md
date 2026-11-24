@@ -23,7 +23,7 @@
 
 ### 1.2 PR #34 不是已合并基线
 
-核查时 [PR #34][P34] 为 open、merged=false，head 为 8c17687d8a893297585da51a3e7c3c4b54153d5a，base 为 fix/ui-test-snapshot-race，叠放在 PR #33 之后。
+初版对照的候选 [PR #34][P34] 当时为 open、merged=false，head 为 8c17687d8a893297585da51a3e7c3c4b54153d5a，base 为 fix/ui-test-snapshot-race。以下候选源码链接只描述这个历史版本；后续 base/head 及功能锁定决定见 [来源基线](SOURCE_BASELINE.md)。
 
 已读取的 head 代码实际包含：
 
@@ -31,7 +31,7 @@
 - 默认最多 16 个已加载会话的 LRU 策略，并保护生成中、未保存、有草稿等会话。
 - 优先加载启动时发现仍处于 streaming 的会话，以保留中断恢复。
 - ChatWorkspaceModel 拆成主文件与 Credentials、Storage、Generation、Library 扩展文件。
-- 搜索 key 读取失败与未配置的错误区分。
+- 搜索 key 读取失败与未配置的错误区分；固定 main 的发送路径并未区分，详见第 2.1 节。
 
 证据见 [PR #34 持久化实现][P34S1]、[PR #34 存储编排][P34S2] 和 [PR #34 主状态类][P34S3]。拆成扩展文件后仍是同一状态类；Windows 应建立独立职责边界。PR 文案中的体积改善比例没有本次测量证据，不作为性能承诺。
 
@@ -64,6 +64,27 @@
 | F-CHAT-019 | iOS 有限后台任务、完成通知、冷启动导航；通知不含聊天文字。[S18] | Windows 生命周期协调、显式托盘模式、完成通知与单实例激活 | [T01] backgroundExpirationInterruptsAndNotifiesOnSuccess；completionNotificationCarriesNoConversationText | AT-CHAT-019 |
 | F-CHAT-020 | 会话绑定来源服务；换服务发送需匹配目标与凭据版本的确认；旧确认无效。[S05] [S15] | 授权 token、来源提示、服务/凭据 revision、日志和通知脱敏 | [T01] staleServerChangeConfirmationIsRejectedWithoutTruncating；[T04] failedCandidateConnectionPreservesAcceptedChatWorkspaceAndEphemeralKey | AT-CHAT-020 |
 | F-CHAT-021 | 源端有私有 JSON 数据和 Codable 模型；未核实已有稳定跨平台导出协议。[S06] [S15] | 新增 iOS 源端 exporter、版本化中立包、Windows 事务 importer 与可回滚迁移 | 新增跨语言 golden/往返测试；不能把现有 conversationRoundTrips 当跨平台证明 | AT-CHAT-021 |
+
+## 2.1 源码逐项核验：入口、默认值与反例
+
+本次直接读取固定 main 的聊天状态类、各聊天视图、五个搜索 adapter、文件持久化和对应 Swift 测试，**未运行 Swift 测试，也未访问 CPA 或搜索服务**。[S05] [S06] [S09] [S10] [S12] [S13] [S19] [S20] [S21] [S22] [S23] [T01] [T03] [T05]。“源端事实”是代码路径与已有断言；“Windows 决定”是本次新增的待实现要求，不表示平台行为已经验证。
+
+| 域 | 源端事实与反例 | Windows 决定与落实位置 |
+|---|---|---|
+| 工作区入口 | [S12] `ChatWorkspaceView` 中工具栏“新建对话”“对话设置”、列表行导航和 `.searchable` 均可达；正文搜索经 150 ms 防抖、去首尾空白后执行，对 `displayTitle` 和所有消息的 `text` 做 `localizedCaseInsensitiveContains`，不搜 reasoning、snippet、图片或技能展开。[S23] `displayTitle` 对空标题显示“新对话”，预览取最后一条非空正文并将换行压平后取前 80 字符，纯图消息显示“暂无消息”。 | 保留原生入口及标题/正文搜索；落盘的摘要、FTS、预览折叠是独立设计，需 golden 验证中文/大小写/重音差异，不能臆称与 Apple 语义词典完全一致。源端没有全局跨服务知识检索。预览是否专门显示“[图片]”是 UI 改进，不得改变正文或影响搜索范围。→ F-CHAT-007，CHAT-P06 / WP-014。 |
+| 空会话与排序 | [S05] `createConversation()` 复用第一个无消息且不在生成的会话；重置标题、本对话设定、reasoning、联网开关、来源服务和模型，并清该会话内存草稿。空会话不落盘，加载时过滤空消息会话。[S05] `updateConversationMetadata(_:_:)` 修改标题/模型/设置但不更新 `updatedAt` 或排序，值无变化则不写；发送、重命名保存仍有序。[T01] `newConversationReusesAnEmptyOne`、`reusingEmptyConversationAcrossServersClearsPerConversationSettings`、`updateConversationMetadataPreservesOrderAndSkipsNoOpWrites` 是已有断言。 | 复用不能清掉新持久化草稿之外的内容，也不能让另一服务/新模型继承旧会话设定。用 revision/代次隔离迟到 metadata 保存；保留无操作无需写、排序时机可解释。→ F-CHAT-006/007/016，CHAT-P05/P06/P07，WP-012/014。 |
+| 消息操作与原始文本 | [S13] [S22] 消息菜单提供复制、编辑用户消息并重发、重新生成助手回复、加入记忆、删除；复制及“加入记忆”保留原始 `message.text`，不是 Markdown 渲染后的纯文本。编辑时暂存普通草稿与图片、清空编辑区附件，取消恢复；编辑重发只提交非空文本，不补入原消息图片。[S05] `deleteMessage` 可删除单条消息；删问题同时清子回复的 `expandedPrompt/searchQuery`；删最后一条消息后移除该 JSON。[T01] `deletingLastMessageRemovesConversationFromDisk`、`deletingQuestionClearsDerivedExpandedPromptOnDisk`、`regenerateRejectsUnrelatedParentAfterQuestionDeletion` 是已有断言。 | 提供等价原生菜单/键盘入口，不将“编辑重发”悄悄改成原地改一条历史记录。原附件是否可复制到新分支是需要另行设计的扩展，默认保持源端不补图。单条删除进入写队列并处理部分失败、孤儿图片、父 ID/接续资格；复制明文及从消息添加记忆即使已有生成中亦不应无条件禁用。→ F-CHAT-009/013/016，CHAT-P06/P07/P08，WP-014/015/016。 |
+| 默认模型与 reasoning | [S05] [S15] 新会话默认 automatic、联网关闭、无本对话设定；模型目录成功时优先固定模型或该服务最近显式选择，不可用/未选则回退目录第一项。空会话等待目录到达后可补默认模型；目录失败阻断生成，即使旧数组尚有模型也不当作已授权。仅空会话且用户未手工改 reasoning 时，换默认模型随之采用该服务/模型已记忆档位。 | 保持目录失败、`modelListState` 和模型 ID 分开；不要用 PreviouslyWorkingModels 放行。不记住凭据仅使用进程级最近选择缓存；设置读取失败时不得将默认偏好重存覆盖磁盘。→ F-CHAT-002/004/020，CHAT-P03/P04，WP-013；对应 [T01] `lateCatalogFromPreviousKeyCannotAuthorizeAModel` 和 [T02] `modelRemovalAdoptsFallbackRememberedEffortAndFailedSettingsUsesTemporaryCache`。 |
+| 默认技能与原始展开 | [S05] `defaultSkills` 为 `translate`、`summarize`、`polish`、`explain`。无技能文件时一次性播种，读取失败时留空、不覆盖；[S08] normalized command 为去首尾空白、去开头 `/`、小写并移除全部空白。[S08] `/unknown rest` 不做技能替换；有效技能模型收到 `prompt + "\n\n" + rest`，可见消息保持原 slash 文本。 | 保留其命令与提示词 golden，而不是仅保留“四种技能”数量。建议 `/` 列出全部，`/partial` 做大小写不敏感前缀匹配；未知命令按普通原文发送，若 Windows 加警告不得拦截或改写查询。旧 `attempts == nil` 的接续可从现行技能恢复展开，已有 attempts 无 `expandedPrompt` 则保留原始 slash 文本；此 Codable 分支必须进迁移 golden，见 [S05] `performContinuation` 和 [T01] `nonLegacyContinuationWithoutExpansionUsesRawSlashText`。→ F-CHAT-010/014，CHAT-P07/P08，WP-015/016。 |
+| 图片导入 | [S10] `photoPicker` 仅支持选图，每次 `maxSelectionCount: 4`；已有四图或编辑/生成中禁用。`loadAttachments` 对每张解码，失败或超四张直接继续，没有汇总错误提示。iOS `ChatImageEncoder` 长边上限 1536，较短边不放大，JPEG 质量 0.8；输入 PNG 经选择器后也重编码为 JPEG，仓库中 DEBUG UI 测试可直接构造 PNG 但不代表产品选图路径。[S22] 缩略图最大 216 px、72 x 72 展示、缓存 128 项。 | Windows 新增粘贴/拖放、MIME/像素/字节校验、失败计数和隔离 token；显式展示跳过/拒绝原因，不复制源端静默跳过。JPEG 0.8、长边 1536、总 4 张为默认值，alpha、EXIF、动图需 fixtures 验证并记录选择，不能用 `image/jpeg` MIME 假定原字节有效。216/128 是源端 UI 缓存配置而非 Windows 性能门槛。→ F-CHAT-006/016，CHAT-P05/P06，WP-012/014。 |
+| 图片历史与预算 | [S05] `eligibleHistory` 排除当前最后 user/assistant 占位，只保留 complete/stopped，但可含空文本的纯图片用户消息；assistant reasoning 不计入 Swift 的 60,000 `String.count` 预算。[S08] 保留最近完整 turns，某轮超限即停止纳入更早轮次；图片从有附件的最新两条消息保留，代码按附件存在筛选，不额外限定 role。 | 保留该真实边界或明确记录批准的修复；新增空文本/纯图、reasoning 巨额文本、连续助手、预算恰好相等、一个超长最新 turn 等反例。不得因转 SQLite FTS 或 UTF-16 字节计算把历史范围改掉。→ F-CHAT-006/011，CHAT-P04/P05/P07，WP-011/012/015。 |
+| 默认记忆与时间 | [S15] `ChatSettings()` 默认 memory=true、通知=true、自动标题=true、搜索 provider=nil。[S08] `instructions` 使用 Gregorian calendar 和进程默认时区生成 `当前日期：yyyy-MM-dd`，不是固定 UTC；记忆按 pinned 在前，各自内部 `createdAt` 升序。[S13] [S05] “加入记忆”是非空文本去首尾空白后新增，没有查重。[S05] 设置或记忆读取失败用 `effectiveMemoriesForPrompt` 空集合遮蔽记忆；技能读取失败不播种。 | Windows 固定时钟连同本地时区验证日期；不要把默认时区写死 UTC，除非产品 ADR 明确改变。空文本不新增且不触发成功提示；保存失败不得宣称已持久记住。缺省 nil 文件与损坏/读取失败必须在 importer 和 repository 区分。→ F-CHAT-013/014/016/021，CHAT-P05/P08/P09，WP-012/016/026。 |
+| 标题 | [S05] `performSend` 空白标题先取用户原文前 24 字符（纯图片可为空）；只有该占位标题未被用户替换，且是首个 complete assistant，才发额外 `complete` 请求。生成请求用 automatic，文本含完整 userText 与回复前 500 字符，要求不超过 12 字，结果去指定引号并取前 30 字符；失败静默不重试。 | 保留“自动标题是额外模型调用”的披露，用户关闭后不请求。标题任务按会话删除代次、原凭据 revision 和占位值校验；不将失败当聊天失败，不将空标题续作生成成功的必要条件。→ F-CHAT-015，CHAT-P07，WP-015；[T01] `generatedTitleNeverReplacesAUserTitle`。 |
+| 搜索查询与默认参数 | [S09] 五 provider 均最多取五个有效结果；Tavily basic POST、Brave GET count=5、Exa POST text maxCharacters=1000、Serper POST、SerpAPI GET engine=google，具体 endpoint、鉴权头与 query 见该类。要求 title 和合法 http(s) host，缺 title 的 URL 被丢；snippet/content 缺省为空。查询 trim 为空抛 `emptyQuery`。 | 按各符号建立脱敏 wire fixture，不复用一个“通用搜索 JSON”。默认无 provider 且联网关闭时按钮可用于开启流程；全局 provider 移除后仍允许单会话关闭联网。来源 UI 是显式用户点击的 [S22] `Link`，不能因为静态 HTML 禁导航而禁用正常来源打开。→ F-CHAT-012，CHAT-P08，WP-017。 |
+| 搜索失败的实际语义 | [S05] `performSearch` 只在成功时写 `searchCompleted=true`，零结果亦写且不注入 sources；HTTP/解析/空查询错误写 `searchFailed` 后**仍继续模型生成，结果可为 complete 且带 failure**。key 不存在与读取抛错都归入 `searchNotConfigured`；[T01] `searchKeyStatusDistinguishesUnknownFromAbsentOnKeychainError` 只证明设置页三态，不证明发送路径区分。纯图片消息 query 为空，因此启用搜索且 key 可用时走 `emptyQuery → searchFailed`，仍能生成；搜索中止则停止，不调用模型。 | Windows **修复并披露** key read=unknown、absent、provider absent、搜索失败、空图片查询的分类，不能把 unknown 一律误报为未配置。默认搜索失败仍可在告知用户“无检索结果”的基础上生成，保持源端软失败；纯图带联网开关需定义不检索原因并测试请求次数。取消在 key load/search 任意阶段均阻断模型。→ F-CHAT-006/008/012，CHAT-P04/P08，WP-011/017。 |
+| 会话存储与失败 | [S06] `Application Support/CPAQuotaChat/Conversations/<UUID>.json`，另有同目录 settings/memories/skills JSON；原子写、目录排除备份并尝试 `completeUntilFirstUserAuthentication`（不等同聊天数据库 DPAPI 加密）。加载会话把目录枚举/整体读取错误转为 `[]`，单文件损坏静默跳过，不显示“可能少数据”；四路加载完成后 `isLoaded=true`。settings 写成功会清 settingsLoadFailed；记忆/技能写成功不清各自 LoadFailed。[T01] `failedMetadataLoadsWithholdMemoriesAndNeverOverwriteSkills` 不覆盖这些总读取错误。 | Windows **必须修复** silent-empty：区分 first-run empty、部分记录失败、整体读取失败；有失败则列表提示“不完整”并提供重试，不自动写上一条快照、播种或删除未知记录。CRUD 保存失败保持 dirty；读取已失败后仍须保守保留该域的内存变更而不伪报已恢复。元数据保存/重试成功后是否清 load 警告按明确状态机处理，不照抄各方法不一致行为。→ F-CHAT-007/013/016，CHAT-P05/P08，WP-012/016。 |
+
+源代码中可达而原计划映射不够显式的入口还包括：会话选项同时允许清空模型、编辑标题及本对话设定 [S21]；设置页有固定/最近模型策略、key 发现/手动输入/移除、搜索 key 保存/移除、通知开关和删除全部对话 [S20]。它们已分别归入 F-CHAT-001/002/007/012/019，本次不另造功能 ID；窗口形态不必仿照 sheet，但功能与失败反馈不能消失。
 
 ## 3. 业务和平台边界
 
@@ -337,16 +358,16 @@ CHAT-P02 与纯协议/存储工作可并行；同一个数据库 schema、接口
 | AT-CHAT-003 | 两协议路径、headers、images、system位置、usage、错误形状；带反向代理前缀和编码路径 | 原始请求/响应脱敏golden差异报告 |
 | AT-CHAT-004 | 全 reasoning 档位、合法降级、缓存隔离；首正文/reasoning/usage 后失败均不得自动重发；未知网络结果不回退 | 参数化测试、每场景请求次数、兼容提示截图 |
 | AT-CHAT-005 | UTF-8任意分块、CRLF、多行data、超限event、正文含message_stop、缺终止、仅reasoning/usage、尾部无空行 | parser fixtures、最终文本散列、结束分类报告、长流录屏 |
-| AT-CHAT-006 | 中文IME、emoji、键盘快捷键、纯图、4图、非法/过大图、横竖图、拖放/粘贴、切会话时解码；文本/纯图草稿重启恢复、保存关闭/清理失败、发送后新输入、取消编辑、迟到保存与解码不复活 | UI自动化、原生截图/录屏、附件大小/像素校验、草稿/引用前后对账与持久化开关报告 |
-| AT-CHAT-007 | 大历史分页、搜索取消、重名/删除/删除失败；索引损坏重建；加载列表不读取附件内容 | DB查询/文件读取计数、UI证据、性能样本 |
-| AT-CHAT-008 | 搜索中停止、首token前/后停止、换连接、删除、旧取消到达下一attempt | 任务/attempt轨迹、无迟到写/重复通知断言 |
-| AT-CHAT-009 | 无key/模型无效/旧授权时编辑重发不得删历史；合法重发仅截断确认范围 | 变更前后记录对照、确认UI截图 |
-| AT-CHAT-010 | 停止/断网/冷启动接续、完整重播、部分词重合、未闭合围栏、仅reasoning、无新正文、换模型/服务 | 源/目标golden一致性、attempt与usage记录、接续UI |
-| AT-CHAT-011 | 多语言字符预算、完整轮次、长未完成回复优先保留、两条图片历史限制、省略数量 | 纯函数golden、字段级差异与文本一致性报告 |
-| AT-CHAT-012 | 五provider请求、缺key/读key失败/取消/零结果/失败；恶意scheme与注入片段；SerpAPI query脱敏 | 五套契约测试、来源截图、日志泄漏扫描 |
-| AT-CHAT-013 | 指令顺序、固定日期/时区、记忆关闭/置顶/编辑/删除；读失败不覆盖 | prompt golden、设置/记忆UI、恢复报告 |
-| AT-CHAT-014 | 命令大小写/空格/前缀建议/重复；技能编辑后接续仍用已保存展开；原问题删除清理derived字段 | 技能UI、纯逻辑测试、数据库查询断言 |
-| AT-CHAT-015 | 多次usage快照不重复累计；跨attempt正确累计；标题关/开；旧标题不得覆盖用户标题或新连接 | token对账、请求次数、标题竞态测试 |
+| AT-CHAT-006 | 中文IME、emoji、键盘快捷键、纯图、4图、非法/过大图、横竖图、拖放/粘贴、切会话时解码；文本/纯图草稿重启恢复、保存关闭/清理失败、发送后新输入、取消编辑、迟到保存与解码不复活；输入/输出 JPEG 质量与 alpha/EXIF/动图反例；纯图开启联网的空查询不隐式改写 | UI自动化、原生截图/录屏、附件大小/像素/格式校验、草稿/引用前后对账与持久化开关、搜索与推理请求次数报告 |
+| AT-CHAT-007 | 大历史分页、搜索取消、重名/删除/删除失败；索引损坏重建；加载列表不读取附件内容；150ms 防抖核对、reasoning/snippet 不命中、空标题/纯图预览、空会话复用重置、metadata 不重排；整体读取失败/部分坏记录不得冒充空列表 | DB查询/文件读取计数、UI证据、源/目标搜索与预览golden、首运行/空/不完整/失败四类读取结果、性能样本 |
+| AT-CHAT-008 | 搜索中停止、首token前/后停止、换连接、删除、旧取消到达下一attempt；搜索 key load 取消阻止全部后续调用 | 任务/attempt轨迹、无迟到写/重复通知断言 |
+| AT-CHAT-009 | 无key/模型无效/旧授权时编辑重发不得删历史；合法重发仅截断确认范围；取消编辑恢复原草稿/图片，编辑保留原附件但不自动补入；删除单条/末条及派生字段/附件/磁盘记录，迟到写入不复活 | 变更前后记录对照、确认UI截图、原始/复制文本与附件引用对账、父ID/重发资格断言 |
+| AT-CHAT-010 | 停止/断网/冷启动接续、完整重播、部分词重合、未闭合围栏、仅reasoning、无新正文、换模型/服务；旧记录无 attempts 且无 expandedPrompt 时允许按现行技能恢复展开；已有 attempts 却无 expandedPrompt 时只用原 slash 文本，两者分别断言 | 源/目标golden一致性、attempt与usage记录、接续UI、legacy迁移字段对照 |
+| AT-CHAT-011 | 多语言字符预算、完整轮次、长未完成回复优先保留、超长最新轮、两条图片历史限制、空文本纯图历史、reasoning不计预算、省略数量 | 纯函数golden、字段级差异与文本一致性报告 |
+| AT-CHAT-012 | 五provider端点/鉴权/默认参数、缺key/读key失败/取消/零结果/空纯图query/失败；恶意scheme、缺title、无效host与注入片段；搜索软失败后仍生成并明确无检索；SerpAPI query脱敏；来源点击与HTML预览禁导航独立 | 五套契约测试、来源截图、分类和请求次数、日志泄漏扫描 |
+| AT-CHAT-013 | 指令顺序、固定日期/非UTC时区、默认开关、记忆关闭/置顶/编辑/删除、从消息添加记忆、空文本；设置/记忆/技能读失败不覆盖与保存失败可见 | prompt golden、设置/记忆UI、读取和保存状态机、恢复报告 |
+| AT-CHAT-014 | 默认四技能原文/命令、大小写/空格/前缀建议/重复/未知命令直送；技能编辑后接续仍用已保存展开；原问题删除清理derived字段；读取失败不播种 | 技能UI、纯逻辑测试、首次nil/读取失败/损坏的存储状态断言 |
+| AT-CHAT-015 | 多次usage快照不重复累计；跨attempt正确累计；标题关/开、纯图空占位、24/500/30字符边界；旧标题不得覆盖用户标题或新连接；标题失败不改变主回复状态 | token对账、标题额外请求次数与payload、标题竞态测试 |
 | AT-CHAT-016 | checkpoint与终态乱序、写失败/磁盘满/DB锁、保存后删/删后迟到写、附件提交中崩溃、schema升级失败、旧版拒写 | 故障注入结果、恢复前后散列/计数、备份恢复证据 |
 | AT-CHAT-017 | 源renderer完整语法golden，代码/公式/表格，长文流式、用户上滚/选择、200%缩放/高对比度/Narrator | WinUI真实截图/录屏、可访问性结果、渲染和响应延迟样本 |
 | AT-CHAT-018 | script/event handler、远程CSS/font/img、iframe、form、file/UNC、自定义scheme、download、auth、file chooser、host bridge、恶意meta/base、Runtime崩溃；保留内联样式和源码复制 | 本地捕获端零片段资源请求证据、无本机文件访问/桥接断言、预览与源码截图、清理验证 |
@@ -384,6 +405,11 @@ CHAT-P02 与纯协议/存储工作可并行；同一个数据库 schema、接口
 [S16]: https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaUI/CPAQuotaRootView.swift
 [S17]: https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaUI/Chat/ChatHTMLPreview.swift
 [S18]: https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaChat/ChatBackgroundRunner.swift
+[S19]: https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaUI/Chat/ChatLibraryViews.swift
+[S20]: https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaUI/Chat/ChatSettingsView.swift
+[S21]: https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaUI/Chat/ChatConversationOptionsView.swift
+[S22]: https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaUI/Chat/ChatMessageView.swift
+[S23]: https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Sources/CPAQuotaUI/Chat/ChatPresentation.swift
 [T01]: https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Tests/CPAQuotaKitTests/ChatWorkspaceModelTests.swift
 [T02]: https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Tests/CPAQuotaKitTests/ChatReasoningCompatibilityTests.swift
 [T03]: https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Tests/CPAQuotaKitTests/ChatFilePersistenceTests.swift

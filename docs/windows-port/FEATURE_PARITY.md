@@ -10,7 +10,7 @@
 - 全部实现状态为 planned。后续使用 planned / implementing / implemented-unverified / verified / verified_platform_equivalent / blocked；源码存在、构建成功、合成截图、历史报告都不等于 Windows 验收通过。verified_platform_equivalent 仅用于有真实证据的 Windows 平台等价实现，须保留完整用户价值并写明差异，不能用于删除能力或豁免可用宿主上的原生 Widgets。
 - 每份证据至少保存提交 SHA、操作系统/架构、工具链、场景 ID、run/attempt、预期/实际、必要日志/截图/录像及制品哈希；失败与未执行不可省略。
 - 新增 Windows 平台和迁移基础设施按目标要求列出，不倒写成源 iOS 已具备。Apple 专有 API 要以可验收的 Windows 能力达到用户目的；系统限制须如实说明。
-- 完整验收同时遵循 [CHAT_AND_DATA.md](CHAT_AND_DATA.md)、[MONITORING_PROTOCOL.md](MONITORING_PROTOCOL.md)、[PLATFORM_AND_RELEASE.md](PLATFORM_AND_RELEASE.md) 与 [ACCEPTANCE.md](ACCEPTANCE.md)。若发现基线可见能力漏项，新增 ID 并补任务/验收，不以表格漏项作为删减理由。
+- 完整验收同时遵循 [连接、额度与 CAP 合同](QUOTA_CAP_CONNECTION.md)、[CHAT_AND_DATA.md](CHAT_AND_DATA.md)、[MONITORING_PROTOCOL.md](MONITORING_PROTOCOL.md)、[PLATFORM_AND_RELEASE.md](PLATFORM_AND_RELEASE.md) 与 [ACCEPTANCE.md](ACCEPTANCE.md)。若发现基线可见能力漏项，新增 ID 并补任务/验收，不以表格漏项作为删减理由。
 
 ## 1. 连接、网络与秘密（F-CON）
 
@@ -40,7 +40,7 @@
 | F-QTA-001 | 身份包含id/authIndex/provider/适用Codex ID，数值身份须无损。[客户端][S-QCLIENT] [解码][S-WIRE] | 字符串优先，不通过double舍入制造ID；身份变化失效旧快照和flight。 | AT-QTA-001：大整数/浮点/小数/布尔/重复ID/凭据映射变化契约。 | P0 |
 | F-QTA-002 | 清单区分未加载、失败、成功为空、禁用、不可用。[Store][S-QSTORE] [诊断][S-DIAG] | 各状态独立文案/操作；失败不显示零账号，禁用不自动查询。 | AT-QTA-002：五类状态UI与请求计数，空态和重试准确。 | P0 |
 | F-QTA-003 | Codex、xAI及服务发现的标准额度插件，能力失败有告警。[客户端][S-QCLIENT] [解析][S-QPARSE] | 保留pluginQuota、固定代理读取与unsupported差异，不猜未知平台接口。 | AT-QTA-003：逐provider golden、插件不可用/501/未知provider。 | P1 |
-| F-QTA-004 | 多个独立窗口、重置时间；一个超限不污染其他窗口。[解析][S-QPARSE] [详情][S-DETAIL] | 全部窗口可见，摘要明确；比例/allowed/limitReached/resetAt分开。 | AT-QTA-004：主/副/code-review/additional窗口，125%超限与其他余量。 | P0 |
+| F-QTA-004 | 多个独立窗口、重置时间；一个超限不污染其他窗口。[解析][S-QPARSE] [详情][S-DETAIL] | 详情保留全部窗口；Codex 首页仅按 5 小时→7 天展示已识别普通窗口，单窗与未知比例不补零，不为卡片增加查询。比例/allowed/limitReached/resetAt 分开。 | AT-QTA-004：7d-only、重复时长、同长附加窗、未知与真实 0%、隐藏低额提示、125% 超限与其他余量；选择规则见[额度合同](QUOTA_CAP_CONNECTION.md)。 | P0 |
 | F-QTA-005 | 摘要、Credits、套餐、货币/单位与比例各自保留，缺失不推零或无限。[模型][S-MODELS] | nullable领域值，xAI cents→USD明确转换；summary数值不冒充比例。 | AT-QTA-005：quota-parity fixture、单位/负值/非有限值/未知。 | P0 |
 | F-QTA-006 | 主动/被动来源、fetchedAt/observedAt、陈旧和异常未来时间分开。[模型][S-MODELS] [详情][S-DETAIL] | 失败保留并标旧快照，不伪造更新时间或恢复。 | AT-QTA-006：受控时钟、缺观察时间、过期/未来时间与刷新失败截图。 | P0 |
 | F-QTA-007 | 刷新有planned/processed/succeeded/failed/skipped及阶段，逐个发布。[Store][S-QSTORE] | 可观察操作摘要，取消补skipped；部分账号失败不等于全局成功。 | AT-QTA-007：混合成功/失败/禁用/取消计数守恒和渐进UI。 | P1 |
