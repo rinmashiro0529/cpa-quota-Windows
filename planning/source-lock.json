@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "rinmashiro0529/cpa-quota-ios",
+    "url": "https://github.com/rinmashiro0529/cpa-quota-ios",
+    "branch": "main",
+    "commit_sha": "80beea9ed251a628307825cba99290b5f246575b",
+    "commit_time_utc": "2026-11-24T13:10:32Z",
+    "verified_on": "2026-11-25",
+    "timezone": "Asia/Shanghai",
+    "scope": "源码与合同分析快照；不是Windows运行证据"
+  },
+  "target": {
+    "repository": "rinmashiro0529/cpa-quota-Windows",
+    "url": "https://github.com/rinmashiro0529/cpa-quota-Windows",
+    "default_branch": "main",
+    "state_before_plan": "empty",
+    "observed_on": "2026-11-25",
+    "implementation_state": "not_started"
+  },
+  "fixture_policy": "WP-003按以下路径和git_blob_sha导入原始fixture并保留来源与许可；此计划提交尚未复制业务fixture。",
+  "fixtures": [
+    {
+      "path": "Tests/ContractFixtures/cpa-envelope-v1.json",
+      "git_blob_sha": "ccbb8932637a9765d9c7570a047b47d03183f058",
+      "size_bytes": 6353,
+      "url": "https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Tests/ContractFixtures/cpa-envelope-v1.json"
+    },
+    {
+      "path": "Tests/ContractFixtures/monitoring-capabilities-v1.json",
+      "git_blob_sha": "ffd6c4d8c96bc771484c094ad91faf404da26532",
+      "size_bytes": 551,
+      "url": "https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Tests/ContractFixtures/monitoring-capabilities-v1.json"
+    },
+    {
+      "path": "Tests/ContractFixtures/monitoring-lifecycle-v1.json",
+      "git_blob_sha": "60a09b2f1d675ac796248364490118b4792f5add",
+      "size_bytes": 13855,
+      "url": "https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Tests/ContractFixtures/monitoring-lifecycle-v1.json"
+    },
+    {
+      "path": "Tests/ContractFixtures/monitoring-v1-session.json",
+      "git_blob_sha": "ab13ee962b0855694cf929508456c3ca7db5542b",
+      "size_bytes": 763,
+      "url": "https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Tests/ContractFixtures/monitoring-v1-session.json"
+    },
+    {
+      "path": "Tests/ContractFixtures/quota-parity-v1.json",
+      "git_blob_sha": "ac451d7a422d0325f53b925c76966ff0b3b4bea3",
+      "size_bytes": 1362,
+      "url": "https://github.com/rinmashiro0529/cpa-quota-ios/blob/80beea9ed251a628307825cba99290b5f246575b/Tests/ContractFixtures/quota-parity-v1.json"
+    }
+  ],
+  "pending_pull_requests": [
+    {
+      "number": 33,
+      "url": "https://github.com/rinmashiro0529/cpa-quota-ios/pull/33",
+      "state_at_review": "open",
+      "merged_at_review": false,
+      "head_sha": "a1ad2537ea70cc6b755676de064ae3ddee12b3ba",
+      "base_ref": "main",
+      "title": "fix(uitests): eliminate TOCTOU snapshot race during sheet dismissal",
+      "policy": "待审修复；PR描述不是当前main已修好或CI通过的证明。"
+    },
+    {
+      "number": 34,
+      "url": "https://github.com/rinmashiro0529/cpa-quota-ios/pull/34",
+      "state_at_review": "open",
+      "merged_at_review": false,
+      "head_sha": "8c17687d8a893297585da51a3e7c3c4b54153d5a",
+      "base_ref": "fix/ui-test-snapshot-race",
+      "title": "feat(chat): externalize attachments, add indexed lazy loading, and decompose workspace model",
+      "policy": "叠加于#33；外置附件/索引可参考，partial拆文件不等于责任已分离；吸收最终版本须重新差异审查。"
+    }
+  ],
+  "upstream_ci": {
+    "observed_on": "2026-11-25",
+    "head_sha": "80beea9ed251a628307825cba99290b5f246575b",
+    "runs": [
+      {
+        "run_id": 45400721543,
+        "name": "Backend and contract checks",
+        "conclusion": "failure",
+        "url": "https://github.com/rinmashiro0529/cpa-quota-ios/actions/runs/45400721543",
+        "observations": [
+          "Go测试/race/vet成功；Swift package、Release iOS和模拟器构建成功。",
+          "iPhone18Pro UI分片成功；Duo shard2/3原生单元与UI步骤失败，Duo汇总失败。"
+        ],
+        "failed_jobs": [
+          {
+            "job_id": 138470472270,
+            "name": "Native UI (Xcode 27.1, iPhone Duo, shard 2/3)",
+            "failed_step": "Run native unit and UI regression tests"
+          },
+          {
+            "job_id": 138479892313,
+            "name": "Native UI (Xcode 27.1, iPhone Duo) aggregate"
+          }
+        ],
+        "run_attempt": 1
+      },
+      {
+        "run_id": 45400721781,
+        "name": "Duo unfolded inner-display evidence",
+        "conclusion": "success",
+        "url": "https://github.com/rinmashiro0529/cpa-quota-ios/actions/runs/45400721781"
+      },
+      {
+        "run_id": 45400721837,
+        "name": "Public readiness audit",
+        "conclusion": "success",
+        "url": "https://github.com/rinmashiro0529/cpa-quota-ios/actions/runs/45400721837"
+      }
+    ],
+    "interpretation": "分别记录源基线各运行；不能称当前source全绿，不能推导Windows通过。PR#33疑似相关修复仍需准确合并SHA重新验证。"
+  },
+  "refresh_policy": "更新基线须记录旧/新SHA、差异、功能/fixture/测试影响与审阅；开始任务和发布前重新核查未合并PR及CI，禁止静默跟随main。",
+  "official_sources_index": "docs/windows-port/SOURCES.md"
+}
